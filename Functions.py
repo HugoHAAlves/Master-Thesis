@@ -1385,7 +1385,7 @@ def evaluate_oversampling_techniques(X_train: imps.pd.DataFrame,
     return results_df
 
 
-# Function to run a grid search on a passed model, train it on the best identified parameters, and save the model to a pickle file
+# Function to run a grid search on a passed model, train it on the best identified parameters, and save the model to a pickle file (classification problems)
 def run_model_classification(model,
                              param_grid: dict,
                              X_train: imps.pd.DataFrame,
@@ -1440,9 +1440,199 @@ def run_model_classification(model,
     return best_params, y_pred, accuracy, precision, recall, f1, roc_auc
 
 
+# Function to run a grid search on a passed model, train it on the best identified parameters, and save the model to a pickle file (regression problems)
+def run_model_regression(model,
+                         param_grid: dict,
+                         X_train: imps.pd.DataFrame,
+                         y_train: imps.pd.Series,
+                         X_val: imps.pd.DataFrame,
+                         y_val: imps.pd.Series,
+                         scoring = "neg_root_mean_squared_error",
+                         save_model = False,
+                         model_name = None):
+    """
+    Performs a grid search for the given model, scores it using the specified metric, and evaluates it on the validation dataset,
+    calculating the adjusted MAE, MSE, and RMSE scores.
+    It also saves the model to a pickle file (optional).
+
+    Parameters:
+    - model: The model to optimize and train.
+    - param_grid: The parameter grid for GridSearchCV.
+    - X_train: Training features.
+    - y_train: Training target variable.
+    - X_val: Validation features.
+    - y_val: Validation target variable.
+    - scoring: The metric used to evaluate model performance during GridSearchCV.
+    - save_model: Option to save the model into a pickle file.
+    - model_name: Pickle file name.
+    """
+    grid_search = imps.GridSearchCV(estimator = model, param_grid = param_grid, scoring = scoring, n_jobs = -1, cv = 5, verbose = 1)
+    grid_search.fit(X_train, y_train)
+
+    best_params = grid_search.best_params_
+    best_model = grid_search.best_estimator_
+    best_model.fit(X_train, y_train)
+
+    y_pred = best_model.predict(X_val)
+    
+    n = X_val.shape[0]
+    p = X_val.shape[1]
+    mae = imps.np.round(imps.mean_absolute_error(y_val, y_pred), 4)
+    mse = imps.np.round(imps.mean_squared_error(y_val, y_pred), 4)
+    rmse = imps.np.round(imps.np.sqrt(mse), 4)
+
+    print("MAE:", mae, "| MSE:", mse, "| RMSE:", rmse)
+
+    if save_model is True:
+        model_dir = "grades"
+        imps.os.makedirs(model_dir, exist_ok=True)
+        model_filename = imps.os.path.join(model_dir, f"{model_name}.pkl")
+        with open(model_filename, "wb") as file:
+            imps.pickle.dump(best_model, file)
+
+    return best_params, y_pred, mae, mse, rmse
+
+
+# Function to get a model from a pickle file, evaluate it on the validation dataset, and return the model parameters and evaluation metrics (classification problems)
+def get_model_classification(pickle_file_name: str,
+                             X_val: imps.pd.DataFrame,
+                             y_val: imps.pd.Series):
+    """
+    Retrieves a model from a pickle file, evaluates it on the validation dataset, and returns the model parameters and evaluation metrics.
+
+    Parameters:
+    - pickle_file_name: Name of the pickle file containing the model.
+    - X_val: Validation features.
+    - y_val: Validation target variable.
+    """
+    with open(pickle_file_name, "rb") as file:
+        model = imps.pickle.load(file)
+    
+    model_params = model.get_params()
+
+    y_pred = model.predict(X_val)
+    y_pred_proba = model.predict_proba(X_val)[:, 1] if hasattr(model, "predict_proba") else None
+
+    accuracy = imps.np.round(imps.accuracy_score(y_val, y_pred), 4)
+    precision = imps.np.round(imps.precision_score(y_val, y_pred), 4)
+    recall = imps.np.round(imps.recall_score(y_val, y_pred), 4)
+    f1 = imps.np.round(imps.f1_score(y_val, y_pred), 4)
+    roc_auc = imps.np.round(imps.roc_auc_score(y_val, y_pred_proba), 4) if y_pred_proba is not None else "-"
+
+    return model_params, y_pred, accuracy, precision, recall, f1, roc_auc
+
+
+# Function to get a model from a pickle file, evaluate it on the validation dataset, and return the model parameters and evaluation metrics (regression problems)
+def get_model_regression(pickle_file_name: str,
+                         X_val: imps.pd.DataFrame,
+                         y_val: imps.pd.Series):
+    """
+    Retrieves a model from a pickle file, evaluates it on the validation dataset, and returns the model parameters and evaluation metrics.
+
+    Parameters:
+    - pickle_file_name: Name of the pickle file containing the model.
+    - X_val: Validation features.
+    - y_val: Validation target variable.
+    """
+    with open(pickle_file_name, "rb") as file:
+        model = imps.pickle.load(file)
+    
+    model_params = model.get_params()
+
+    y_pred = model.predict(X_val)
+    y_pred = imps.np.round(y_pred)
+
+    n = X_val.shape[0]
+    p = X_val.shape[1]
+    mae = imps.np.round(imps.mean_absolute_error(y_val, y_pred), 4)
+    mse = imps.np.round(imps.mean_squared_error(y_val, y_pred), 4)
+    rmse = imps.np.round(imps.np.sqrt(mse), 4)
+
+    return model_params, y_pred, mae, mse, rmse
+
+
 # Function to customize the background of a cell in a table, highlighting the maximum value for each row
 def highlight_max_column(df: imps.pd.DataFrame):
     """
     Returns the dataframe, highlighting the maximum value for each row
     """
-    return imps.df.style.apply(lambda col: ["background-color: lightgreen" if value == col.max() else "" for value in col], axis = 0)
+    return df.style.apply(lambda col: ["background-color: lightgreen" if imps.pd.to_numeric(col, errors = "coerce").max() == value else "" for value in col], axis = 0)
+
+
+# Function to customize the background of a cell in a table, highlighting the minimum value for each row
+def highlight_min_column(df: imps.pd.DataFrame):
+    """
+    Returns the dataframe, highlighting the minimum value for each row
+    """
+    return df.style.apply(lambda col: ["background-color: lightgreen" if imps.pd.to_numeric(col, errors = "coerce").min() == value else "" for value in col], axis = 0)
+
+
+# Function to print the statistics of a given data array
+def print_stats(title, data):
+    """
+    Prints the average, standard deviation, minimum, maximum, and quartile values of a provided data array.
+
+    Parameters:
+    - title: Title of the statistics.
+    - data: Data array to analyze.
+    """
+    bold_title = "\033[1m" + title + "\033[0m"
+    print(f"\n{bold_title}")
+    print("-" * len(title))
+    print(f"Average (Mean):         {imps.np.round(data.mean(), 4)}")
+    print(f"Standard Deviation:     {imps.np.round(data.std(), 4)}")
+    print(f"Minimum Value:          {imps.np.round(data.min(), 4)}")
+    print(f"25th Percentile (Q1):   {imps.np.round(imps.np.percentile(data, 25), 4)}")
+    print(f"Median (Q2):            {imps.np.round(imps.np.median(data), 4)}")
+    print(f"75th Percentile (Q3):   {imps.np.round(imps.np.percentile(data, 75), 4)}")
+    print(f"Maximum Value:          {imps.np.round(data.max(), 4)}")
+
+
+# Function to retrain a model using parameters from a specified pickle file (created with the help of ChatGPT)
+def retrain_model_with_grades(pickle_file_name: str,
+                              default_model,
+                              X_train: imps.pd.DataFrame,
+                              y_train: imps.pd.Series,
+                              X_val: imps.pd.DataFrame,
+                              y_val: imps.pd.Series):
+    """"
+    From a pickle file and a default instance of a model, computes a new model trained on a new dataset,
+    and evaluates it on a validation set, calculating accuracy, precision, recall, f1 score, and AUROC.
+
+    Parameters:
+    - pickle_file_name: Name of the pickle file containing the model.
+    - default_model: Default model to use for retraining.
+    - X_train: Training features.
+    - y_train: Training target variable.
+    - X_val: Validation features.
+    - y_val: Validation target variable
+    """
+    with open(pickle_file_name, "rb") as file:
+        model = imps.pickle.load(file)
+    
+    full_params = model.get_params()
+
+    estimator_param_key = "estimator" if "estimator" in default_model.get_params() else "base_estimator"
+    nested_estimator = full_params.pop(estimator_param_key, None)
+
+    nested_params = {k: v for k, v in full_params.items() if k.startswith("estimator__")}
+    clean_params = {k: v for k, v in full_params.items() if not k.startswith("estimator__")}
+
+    new_model = default_model.set_params(**clean_params)
+
+    if nested_estimator:
+        if nested_params:
+            nested_estimator.set_params(**{k.replace('estimator__', ''): v for k, v in nested_params.items()})
+        new_model.set_params(**{estimator_param_key: nested_estimator})
+    
+    new_model.fit(X_train, y_train)
+    y_pred = new_model.predict(X_val)
+    y_pred_proba = new_model.predict_proba(X_val)[:, 1] if hasattr(model, "predict_proba") else None
+
+    accuracy = imps.np.round(imps.accuracy_score(y_val, y_pred), 4)
+    precision = imps.np.round(imps.precision_score(y_val, y_pred), 4)
+    recall = imps.np.round(imps.recall_score(y_val, y_pred), 4)
+    f1 = imps.np.round(imps.f1_score(y_val, y_pred), 4)
+    roc_auc = imps.np.round(imps.roc_auc_score(y_val, y_pred_proba), 4) if y_pred_proba is not None else "-"
+
+    return y_pred, accuracy, precision, recall, f1, roc_auc

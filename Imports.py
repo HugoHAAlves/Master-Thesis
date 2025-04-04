@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
 from datetime import datetime
 import os
 import pickle
@@ -21,18 +22,18 @@ from rapidfuzz import process, fuzz
 from sklearn.preprocessing import OrdinalEncoder, MinMaxScaler
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.feature_selection import SelectKBest, f_classif, RFE
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.linear_model import LogisticRegression, LinearRegression, LassoCV
-from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, roc_auc_score, classification_report, mean_squared_error
-from sklearn.ensemble import RandomForestClassifier, BaggingClassifier, AdaBoostClassifier, GradientBoostingClassifier, StackingClassifier, VotingClassifier, RandomForestRegressor
-from sklearn.svm import LinearSVC, LinearSVR, SVC
+from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score, roc_auc_score, classification_report, mean_squared_error,  mean_absolute_error
+from sklearn.ensemble import RandomForestClassifier, BaggingClassifier, AdaBoostClassifier, GradientBoostingClassifier, StackingClassifier, VotingClassifier, RandomForestRegressor, BaggingRegressor, AdaBoostRegressor, GradientBoostingRegressor, StackingRegressor, VotingRegressor
+from sklearn.svm import LinearSVC, LinearSVR, SVC, SVR
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import DBSCAN
 from imblearn.over_sampling import SMOTE, ADASYN, RandomOverSampler, SMOTENC, BorderlineSMOTE, KMeansSMOTE, SVMSMOTE
-from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 import scipy.stats as stats
+import shap
 
 sns.set_style("white")
 font_title = {'family': 'Calibri', 'color':  'black', 'weight': 'normal', 'size': 20}
